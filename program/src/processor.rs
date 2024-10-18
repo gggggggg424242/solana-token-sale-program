@@ -23,13 +23,12 @@ impl Processor {
         let instruction = TokenSaleInstruction::unpack(instruction_data)?;
 
         match instruction {
-            TokenSaleInstruction::InitTokenSale { per_token_price, } => {
-                msg!("Instruction: init token sale program");
-                Self::init_token_sale_program(
-                    accounts,
-                    per_token_price,
-                    token_program_id,
-                )
+            TokenSaleInstruction::InitTokenSale {
+                per_token_price,
+                min_buy,
+            } => {
+                msg!("Instruction: init token sale program {}", min_buy);
+                Self::init_token_sale_program(accounts, per_token_price, min_buy, token_program_id)
             }
             TokenSaleInstruction::BuyToken { number_of_tokens } => {
                 msg!("Instruction: buy token");
@@ -37,12 +36,14 @@ impl Processor {
             }
 
             TokenSaleInstruction::EndTokenSale {} => {
-                msg!("Instrcution : end token sale");
+                msg!("Instruction : end token sale");
                 Self::end_token_sale(accounts, token_program_id)
             }
 
-            TokenSaleInstruction::UpdateTokenPrice { new_per_token_price } => {
-                msg!("Instrcution : update token price");
+            TokenSaleInstruction::UpdateTokenPrice {
+                new_per_token_price,
+            } => {
+                msg!("Instruction : update token price");
                 Self::update_token_price(accounts, new_per_token_price)
             }
         }
@@ -58,8 +59,10 @@ impl Processor {
     fn init_token_sale_program(
         account_info_list: &[AccountInfo],
         per_token_price: u64,
+        min_buy: u64,
         token_sale_program_id: &Pubkey,
     ) -> ProgramResult {
+
         let account_info_iter = &mut account_info_list.iter();
 
         let seller_account_info = next_account_info(account_info_iter)?;
@@ -67,7 +70,7 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        let temp_token_account_info = next_account_info(account_info_iter)?;
+        let temp_token_account_info: &AccountInfo = next_account_info(account_info_iter)?;
         if *temp_token_account_info.owner != spl_token::id() {
             return Err(ProgramError::IncorrectProgramId);
         }
@@ -83,7 +86,7 @@ impl Processor {
         ) {
             return Err(ProgramError::AccountNotRentExempt);
         }
-
+;
         //get data from account (needed `is_writable = true` option)
         let mut token_sale_program_account_data = TokenSaleProgramData::unpack_unchecked(
             &token_sale_program_account_info.try_borrow_data()?,
@@ -97,6 +100,7 @@ impl Processor {
             *seller_account_info.key,
             *temp_token_account_info.key,
             per_token_price,
+            min_buy,
         );
 
         TokenSaleProgramData::pack(
@@ -117,7 +121,7 @@ impl Processor {
             &[&seller_account_info.key],
         )?;
 
-        msg!("chage tempToken's Authroity : seller -> token_program");
+        msg!("change tempToken's Authority : seller -> token_program");
         invoke(
             &set_authority_ix,
             &[
@@ -178,7 +182,11 @@ impl Processor {
     //pda - For signing when send the token from temp token account
     // number_of_tokens - Amount of tokens user want to buy
 
-    fn buy_token(accounts: &[AccountInfo], token_sale_program_id: &Pubkey, number_of_tokens:u64) -> ProgramResult {
+    fn buy_token(
+        accounts: &[AccountInfo],
+        token_sale_program_id: &Pubkey,
+        number_of_tokens: u64,
+    ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
         let buyer_account_info = next_account_info(account_info_iter)?;
         if !buyer_account_info.is_signer {
@@ -191,6 +199,14 @@ impl Processor {
         let token_sale_program_account_info = next_account_info(account_info_iter)?;
         let token_sale_program_account_data =
             TokenSaleProgramData::unpack(&token_sale_program_account_info.try_borrow_data()?)?;
+
+        msg!("Min buy: {}", token_sale_program_account_data.min_buy);
+        msg!("Buy: {}", number_of_tokens);
+        msg!("Price: {}", token_sale_program_account_data.per_token_price);
+
+        if number_of_tokens < token_sale_program_account_data.min_buy {
+            return Err(ProgramError::Custom(0x66));
+        }
 
         if *seller_account_info.key != token_sale_program_account_data.seller_pubkey {
             return Err(ProgramError::InvalidAccountData);
@@ -210,6 +226,12 @@ impl Processor {
         
 
         let system_program = next_account_info(account_info_iter)?;
+        msg!(
+            "Transfer {} lamports : buy account {}  -> seller account {}",
+            token_sale_program_account_data.per_token_price * number_of_tokens,
+            buyer_account_info.key,
+            seller_account_info.key
+        );
         invoke(
             &transfer_sol_to_seller,
             &[
@@ -245,6 +267,7 @@ impl Processor {
             &transfer_token_to_buyer_ix,
             &[
                 temp_token_account_info.clone(),
+                token_mint_address.clone(),
                 buyer_token_account_info.clone(),
                 pda.clone(),
                 token_program.clone(),

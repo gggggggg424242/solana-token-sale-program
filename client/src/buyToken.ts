@@ -11,11 +11,13 @@ import {
   SystemProgram,
   Transaction,
   TransactionInstruction,
+  sendAndConfirmTransaction
 } from "@solana/web3.js";
 import { createAccountInfo, checkAccountInitialized } from "./utils";
-import { Token, TOKEN_PROGRAM_ID } from "@solana/spl-token";
+import { getOrCreateAssociatedTokenAccount, TOKEN_PROGRAM_ID, Account } from "@solana/spl-token";
 import { TokenSaleAccountLayoutInterface, TokenSaleAccountLayout } from "./account";
 import BN = require("bn.js");
+import bs58 = require("bs58");
 
 type InstructionNumber = 0 | 1 | 2 | 3;
 
@@ -27,13 +29,14 @@ const transaction = async () => {
   const tokenSaleProgramId = new PublicKey(process.env.CUSTOM_PROGRAM_ID!);
   const sellerPubkey = new PublicKey(process.env.SELLER_PUBLIC_KEY!);
   const buyerPubkey = new PublicKey(process.env.BUYER_PUBLIC_KEY!);
-  const buyerPrivateKey = Uint8Array.from(JSON.parse(process.env.BUYER_PRIVATE_KEY!));
+  const secretKey = bs58.decode(process.env.BUYER_PRIVATE_KEY!);
+  const buyerPrivateKey = Uint8Array.from(Buffer.from(secretKey));
   const buyerKeypair = new Keypair({
     publicKey: buyerPubkey.toBytes(),
     secretKey: buyerPrivateKey,
   });
 
-  const number_of_tokens = 100;
+  const number_of_tokens = 10;
 
   const tokenPubkey = new PublicKey(process.env.TOKEN_PUBKEY!);
   const tokenSaleProgramAccountPubkey = new PublicKey(process.env.TOKEN_SALE_PROGRAM_ACCOUNT_PUBKEY!);
@@ -54,11 +57,28 @@ const transaction = async () => {
     swapTokenAmount: decodedTokenSaleProgramAccountData.swapTokenAmount,
   };
 
-  const token = new Token(connection, tokenPubkey, TOKEN_PROGRAM_ID, buyerKeypair);
-  const buyerTokenAccount = await token.getOrCreateAssociatedAccountInfo(buyerKeypair.publicKey);
+  console.log("getOrCreateAssociatedTokenAccount");
+  let buyerTokenAccount = await getOrCreateAssociatedTokenAccount(connection, buyerKeypair, tokenPubkey, buyerKeypair.publicKey, undefined, undefined, undefined, TOKEN_PROGRAM_ID)
+    .catch(e => console.log("error: "+e));
+  const PDA = await PublicKey.findProgramAddressSync([Buffer.from("token_sale")], tokenSaleProgramId);
 
-  const PDA = await PublicKey.findProgramAddress([Buffer.from("token_sale")], tokenSaleProgramId);
+  buyerTokenAccount = buyerTokenAccount as Account
 
+  console.log("Send to buyer: "+ buyerTokenAccount.address)
+  console.log("Token Pubkey: "+ tokenPubkey)
+
+  console.log({
+    tokenSaleProgramId: tokenSaleProgramId,
+      tokenSaleProgramAccountPubkey: tokenSaleProgramAccountPubkey,
+      buyerPubKey: buyerKeypair.publicKey,
+      sellerKeypair: tokenSaleProgramAccountData.sellerPubkey,
+      tempTokenAccountPubkey: tokenSaleProgramAccountData.tempTokenAccountPubkey,
+      programId: SystemProgram.programId,
+      toTokenAccount: buyerTokenAccount.address,
+      TOKEN_PROGRAM_ID: TOKEN_PROGRAM_ID,
+      tokenPubKey: tokenPubkey,
+      PDA: PDA[0],
+    });
   const buyTokenIx = new TransactionInstruction({
     programId: tokenSaleProgramId,
     keys: [
@@ -67,17 +87,21 @@ const transaction = async () => {
       createAccountInfo(tokenSaleProgramAccountData.tempTokenAccountPubkey, false, true),
       createAccountInfo(tokenSaleProgramAccountPubkey, false, false),
       createAccountInfo(SystemProgram.programId, false, false),
-      createAccountInfo(buyerTokenAccount.address, false, true),
+      createAccountInfo(new PublicKey(buyerTokenAccount.address), false, true),
       createAccountInfo(TOKEN_PROGRAM_ID, false, false),
       createAccountInfo(tokenPubkey, false, false),
       createAccountInfo(PDA[0], false, false),
     ],
-    data: Buffer.from(Uint8Array.of(instruction, ...new BN(number_of_tokens).toArray("le", 8))),
+    data: Buffer.from(Uint8Array.of(instruction, ...new BN(number_of_tokens).toArray("le",8))),
   });
+
+  console.log(Uint8Array.of(instruction, ...new BN(number_of_tokens).toArray("le",8)));
 
   const tx = new Transaction().add(buyTokenIx);
 
-  await connection.sendTransaction(tx, [buyerKeypair], {
+  console.log("sendAndConfirmTransaction");
+  console.log("");
+  await sendAndConfirmTransaction(connection, tx, [buyerKeypair], {
     skipPreflight: false,
     preflightCommitment: "confirmed",
   });
@@ -89,7 +113,7 @@ const transaction = async () => {
   //phase2 (check token sale)
   const sellerTokenAccountBalance = await connection.getTokenAccountBalance(sellerTokenAccountPubkey);
   const tempTokenAccountBalance = await connection.getTokenAccountBalance(tempTokenAccountPubkey);
-  const buyerTokenAccountBalance = await connection.getTokenAccountBalance(buyerTokenAccount.address);
+  const buyerTokenAccountBalance = await connection.getTokenAccountBalance(buyerTokenAccount!.address);
 
   console.table([
     {

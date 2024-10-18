@@ -15,3 +15,6 @@ docker-target
 .coderrect
 build
 Cargo.lock
+client/yarn.lock
+yarn.lock
+seller.json

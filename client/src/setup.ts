@@ -1,42 +1,67 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
+
+import bs58 = require("bs58");
+import { Connection, Keypair, PublicKey, LAMPORTS_PER_SOL, clusterApiUrl } from "@solana/web3.js";
+import { Mint, TOKEN_PROGRAM_ID, getOrCreateAssociatedTokenAccount, createMint, getMint, getAccount, mintTo, ExtensionType, Account } from "@solana/spl-token";
+import { updateEnv } from "./utils";
 import * as dotenv from "dotenv";
 dotenv.config();
 
-import { Connection, Keypair, PublicKey, LAMPORTS_PER_SOL, clusterApiUrl } from "@solana/web3.js";
-import { Token, TOKEN_PROGRAM_ID } from "@solana/spl-token";
-import { updateEnv } from "./utils";
 
 const setup = async () => {
   console.log("1. Setup Accounts");
 
-  const connection = new Connection(clusterApiUrl("devnet"), "confirmed");
-  const sellerPubkey = new PublicKey(process.env.SELLER_PUBLIC_KEY!);
-  const sellerPrivateKey = Uint8Array.from(JSON.parse(process.env.SELLER_PRIVATE_KEY!));
-  const sellerKeypair = new Keypair({
-    publicKey: sellerPubkey.toBytes(),
-    secretKey: sellerPrivateKey,
+  const initialMint = 5000;
+
+  const connection:Connection = new Connection(process.env.RPCURL!, "confirmed");
+  const payerPubkey:PublicKey = new PublicKey(process.env.SELLER_PUBLIC_KEY!);
+  const secretKey:Uint8Array = bs58.decode(process.env.SELLER_PRIVATE_KEY!);
+  const tokenDecimal:number = parseInt(process.env.TOKEN_DECIMAL!);
+  
+  const payerPrivateKey:Uint8Array = Uint8Array.from(Buffer.from(secretKey));
+  const payerKeypair = new Keypair({
+    publicKey: payerPubkey.toBytes(),
+    secretKey: payerPrivateKey,
   });
 
-  const buyerPubkey = new PublicKey(process.env.BUYER_PUBLIC_KEY!);
-  const tokenPubkey = new PublicKey(process.env.TOKEN_PUBKEY!);
+  const authKeypair:Keypair = payerKeypair
+  const buyerPubkey:PublicKey = new PublicKey(process.env.BUYER_PUBLIC_KEY!);
+  const tokenPubKey: PublicKey = new PublicKey(process.env.TOKEN_PUBKEY!);
+  
+  let mintPub:PublicKey;
+  let mint:Mint;
 
-  // console.log("Create Token Mint Account...\n");
-  //const token = await Token.createMint(connection, sellerKeypair, sellerKeypair.publicKey, null, 0, TOKEN_PROGRAM_ID);
+  console.log("2. Get/Set mint: "+ tokenPubKey);
 
-  const token = new Token(connection, tokenPubkey, TOKEN_PROGRAM_ID, sellerKeypair);
-  console.log("Create Seller Token Account...\n");
-  const sellerTokenAccount = await token.getOrCreateAssociatedAccountInfo(sellerKeypair.publicKey);
+  if (tokenPubKey === undefined) {
+    console.log("Create Token Mint Account...\n");
+    mintPub = await createMint(connection, payerKeypair, payerKeypair.publicKey, null, 9, undefined, undefined, TOKEN_PROGRAM_ID);
+  } else {
+    mint = await getMint(connection, tokenPubKey , "confirmed", TOKEN_PROGRAM_ID);
+    mintPub = mint.address;
+  }
+  
+  console.log("Create or get Seller Token Account...\n");
 
-  // console.log("Mint 5000 Tokens to seller token account...\n");
-  // await token.mintTo(sellerTokenAccount.address, sellerKeypair, [], 5000);
+  const sellerTokenAccount:Account = await getOrCreateAssociatedTokenAccount(connection, payerKeypair, mintPub, payerKeypair.publicKey, undefined, undefined, undefined, TOKEN_PROGRAM_ID);
 
-  const sellerTokenBalance = await connection.getTokenAccountBalance(sellerTokenAccount.address, "confirmed");
+  const sellerHolding = Number(sellerTokenAccount.amount) / Math.pow(10, tokenDecimal);
 
-  // console.log("Requesting SOL for buyer...");
+  if (sellerHolding <= (initialMint* Math.pow(10,tokenDecimal))) {
+    console.log("Mint 5000 Tokens to seller token account... ( " + sellerTokenAccount.address + " )\n");
+    await mintTo(connection, payerKeypair, mintPub, sellerTokenAccount.address, authKeypair, initialMint * Math.pow(10,tokenDecimal), undefined, undefined, TOKEN_PROGRAM_ID);
+  } else { 
+    console.log("Skip mint balance is "+sellerHolding);
+  }
+  console.log("Mint ok");
+
+  const sellerTokenBalance = await getAccount(connection, sellerTokenAccount.address, "confirmed", TOKEN_PROGRAM_ID);
+
+  console.log("Requesting SOL for buyer...");
   //await connection.requestAirdrop(buyerPubkey, LAMPORTS_PER_SOL * 2);
 
-  const sellerSOLBalance = await connection.getBalance(sellerPubkey, "confirmed");
-  const buyerSOLBalance = await connection.getBalance(buyerPubkey, "confirmed");
+  const sellerSOLBalance:number = await connection.getBalance(payerKeypair.publicKey, "confirmed");
+  const buyerSOLBalance:number = await connection.getBalance(buyerPubkey, "confirmed");
 
   console.table([
     {
@@ -47,15 +72,14 @@ const setup = async () => {
 
   console.table([
     {
-      tokenPubkey: token.publicKey.toString(),
+      tokenPubkey: sellerTokenBalance.mint.toString(),
       sellerTokenAccountPubkey: sellerTokenAccount.address.toString(),
-      sellerTokenBalance: sellerTokenBalance.value.uiAmountString,
+      sellerTokenBalance: (Number(sellerTokenBalance.amount) / Math.pow(10,tokenDecimal)),
     },
   ]);
   console.log(`✨TX successfully finished✨\n`);
 
   process.env.SELLER_TOKEN_ACCOUNT_PUBKEY = sellerTokenAccount.address.toString();
-  // process.env.TOKEN_PUBKEY = token.publicKey.toString();
   updateEnv();
 };
 

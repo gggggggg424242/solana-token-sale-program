@@ -12,8 +12,9 @@ import {
   clusterApiUrl,
 } from "@solana/web3.js";
 import { createAccountInfo, checkAccountInitialized } from "./utils";
-import { TOKEN_PROGRAM_ID, Token } from "@solana/spl-token";
+import { getOrCreateAssociatedTokenAccount, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { TokenSaleAccountLayoutInterface, TokenSaleAccountLayout } from "./account";
+import bs58 = require("bs58");
 
 type InstructionNumber = 0 | 1 | 2 | 3;
 
@@ -24,14 +25,16 @@ const transaction = async () => {
   console.log("Setup Transaction");
   const connection = new Connection(clusterApiUrl("devnet"), "confirmed");
   const tokenSaleProgramId = new PublicKey(process.env.CUSTOM_PROGRAM_ID!);
-  const sellerPubkey = new PublicKey(process.env.SELLER_PUBLIC_KEY!);
-  const sellerPrivateKey = Uint8Array.from(JSON.parse(process.env.SELLER_PRIVATE_KEY!));
+const sellerPubkey = new PublicKey(process.env.SELLER_PUBLIC_KEY!);
+  const secretKey = bs58.decode(process.env.SELLER_PRIVATE_KEY!);
+  const sellerPrivateKey = Uint8Array.from(Buffer.from(secretKey));
   const sellerKeypair = new Keypair({
     publicKey: sellerPubkey.toBytes(),
     secretKey: sellerPrivateKey,
   });
   const buyerPubkey = new PublicKey(process.env.BUYER_PUBLIC_KEY!);
-  const buyerPrivateKey = Uint8Array.from(JSON.parse(process.env.BUYER_PRIVATE_KEY!));
+  const secretKey1 = bs58.decode(process.env.BUYER_PRIVATE_KEY!);
+  const buyerPrivateKey = Uint8Array.from(Buffer.from(secretKey1));
   const buyerKeypair = new Keypair({
     publicKey: buyerPubkey.toBytes(),
     secretKey: buyerPrivateKey,
@@ -54,10 +57,10 @@ const transaction = async () => {
     swapSolAmount: decodedTokenSaleProgramAccountData.swapSolAmount,
     swapTokenAmount: decodedTokenSaleProgramAccountData.swapTokenAmount,
   };
-  const token = new Token(connection, tokenPubkey, TOKEN_PROGRAM_ID, buyerKeypair);
-  const buyerTokenAccount = await token.getOrCreateAssociatedAccountInfo(buyerKeypair.publicKey);
 
-  const PDA = await PublicKey.findProgramAddress([Buffer.from("token_sale")], tokenSaleProgramId);
+  const buyerTokenAccount = await getOrCreateAssociatedTokenAccount(connection, buyerKeypair, tokenPubkey, buyerKeypair.publicKey, undefined, undefined, undefined, TOKEN_PROGRAM_ID);
+
+  const PDA = await PublicKey.findProgramAddressSync([Buffer.from("token_sale")], tokenSaleProgramId);
 
   const closeTokenSaleIx = new TransactionInstruction({
     programId: tokenSaleProgramId,

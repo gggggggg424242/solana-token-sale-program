@@ -1,5 +1,7 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import * as dotenv from "dotenv";
+import bs58 = require("bs58");
+
 dotenv.config();
 
 import {
@@ -30,7 +32,8 @@ const transaction = async () => {
   const connection = new Connection(clusterApiUrl("devnet"), "confirmed");
   const tokenSaleProgramId = new PublicKey(process.env.CUSTOM_PROGRAM_ID!);
   const sellerPubkey = new PublicKey(process.env.SELLER_PUBLIC_KEY!);
-  const sellerPrivateKey = Uint8Array.from(JSON.parse(process.env.SELLER_PRIVATE_KEY!));
+  const secretKey = bs58.decode(process.env.SELLER_PRIVATE_KEY!);
+  const sellerPrivateKey = Uint8Array.from(Buffer.from(secretKey));
   const sellerKeypair = new Keypair({
     publicKey: sellerPubkey.toBytes(),
     secretKey: sellerPrivateKey,
@@ -41,7 +44,8 @@ const transaction = async () => {
   console.log("sellerTokenAccountPubkey: ", sellerTokenAccountPubkey.toBase58());
   const instruction: InstructionNumber = 3;
 
-  const newPerTokenPrice = 0.0002 * LAMPORTS_PER_SOL;
+  const newPerTokenPrice = 0.002 * LAMPORTS_PER_SOL;
+  const min_buy = parseFloat(process.env.TOKEN_MIN_BUY!)|0 ;
 
   const updateTokenPriceIx = new TransactionInstruction({
     programId: tokenSaleProgramId,
@@ -78,6 +82,7 @@ const transaction = async () => {
     sellerPubkey: sellerKeypair.publicKey,
     tempTokenAccountPubkey: tempTokenAccountPubkey,
     pricePerToken: newPerTokenPrice,
+    min_buy: min_buy,
   };
 
   console.log("Current TokenSaleProgramAccountData");
