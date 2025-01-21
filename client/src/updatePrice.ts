@@ -108,8 +108,8 @@ const transaction = async () => {
       isInitialized: 1,
       sellerPubkey: sellerKeypair.publicKey,
       tempTokenAccountPubkey: tempTokenAccountPubkey,
-      swapSolAmount: newPerTokenPrice,
-      swapTokenAmount: min_buy,
+      pricePerToken: newPerTokenPrice,
+      min_buy: min_buy,
     };
 
     console.log("Current TokenSaleProgramAccountData");
@@ -117,8 +117,8 @@ const transaction = async () => {
 
     console.table([
       {
-        swapSolAmount: newPerTokenPrice / LAMPORTS_PER_SOL + " SOL",
-        swapTokenAmount: min_buy + " tokens"
+        pricePerToken: newPerTokenPrice / LAMPORTS_PER_SOL + " SOL",
+        min_buy: min_buy + " tokens"
       },
     ]);
     console.log(`✨TX successfully finished✨\n`);
