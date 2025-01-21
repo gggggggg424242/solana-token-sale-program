@@ -61,6 +61,12 @@ const transaction = async () => {
       throw new Error(`Seller needs at least ${minBalanceForAccountCreation / LAMPORTS_PER_SOL} SOL for account creation`);
     }
 
+    // Verify seller token balance before transfer
+    const sellerTokenBalance = await connection.getTokenAccountBalance(sellerTokenAccount.address);
+    if (Number(sellerTokenBalance.value.amount) < amountOfTokenForSale) {
+      throw new Error(`Seller doesn't have enough tokens. Required: ${amountOfTokenForSale}, Available: ${sellerTokenBalance.value.amount}`);
+    }
+
     // Create temp token account
     console.log("Creating temp token account...");
     const tempTokenAccountKeypair = new Keypair();
@@ -83,9 +89,32 @@ const transaction = async () => {
       TOKEN_PROGRAM_ID
     );
 
-    const tx = new Transaction().add(transferIx);
-
     try {
+      // Verify transaction fee and rent costs
+      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+      const transactionFee = 5000; // Default transaction fee in lamports
+      const minimumBalance = await connection.getMinimumBalanceForRentExemption(0);
+      const requiredBalance = transactionFee + minimumBalance;
+
+      // Check seller balance
+      const sellerBalance = await connection.getBalance(sellerKeypair.publicKey);
+      if (sellerBalance < requiredBalance) {
+        throw new Error(`Seller needs at least ${requiredBalance / LAMPORTS_PER_SOL} SOL for transaction fees and rent`);
+      }
+
+      // Check buyer balance
+      const buyerBalance = await connection.getBalance(tempTokenAccountKeypair.publicKey);
+      const requiredBuyerBalance = 1000000000; // 1 SOL in lamports
+      if (buyerBalance < requiredBuyerBalance) {
+        console.log(`Warning: Buyer balance (${buyerBalance / LAMPORTS_PER_SOL} SOL) is less than required (${requiredBuyerBalance / LAMPORTS_PER_SOL} SOL)`);
+        
+
+      }
+
+      const tx = new Transaction().add(transferIx);
+      tx.recentBlockhash = blockhash;
+      tx.lastValidBlockHeight = lastValidBlockHeight;
+
       const signature = await sendAndConfirmTransaction(
         connection, 
         tx, 
@@ -93,6 +122,7 @@ const transaction = async () => {
         {
           skipPreflight: false,
           preflightCommitment: "confirmed",
+          maxRetries: 3
         }
       );
       console.log("Transfer successful. Signature:", signature);
