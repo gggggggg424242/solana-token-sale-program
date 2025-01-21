@@ -68,18 +68,18 @@ const transaction = async () => {
     const tempTokenAccountPubkey = new PublicKey(process.env.TEMP_TOKEN_ACCOUNT_PUBKEY!);
     const instruction: InstructionNumber = 2;
 
-    // Get buyer token account
+    // Get buyer token account - but don't create it if it doesn't exist
     console.log("Getting buyer token account...");
-    const buyerTokenAccount = await getOrCreateAssociatedTokenAccount(
-      connection,
-      sellerKeypair, // we can use seller as payer since we're just getting the account
-      tokenPubkey,
-      buyerPubkey,
-      undefined,
-      undefined,
-      undefined,
-      TOKEN_PROGRAM_ID
-    );
+    const buyerTokenAccount = await connection.getTokenAccountsByOwner(buyerPubkey, {
+      mint: tokenPubkey,
+    });
+
+    if (buyerTokenAccount.value.length === 0) {
+      throw new Error("Buyer token account not found. Buyer must create their token account first.");
+    }
+
+    const buyerTokenAccountPubkey = buyerTokenAccount.value[0].pubkey;
+    console.log("Found buyer token account:", buyerTokenAccountPubkey.toBase58());
 
     const PDA = await PublicKey.findProgramAddressSync([Buffer.from("token_sale")], tokenSaleProgramId);
 
@@ -120,7 +120,7 @@ const transaction = async () => {
 
       // Check final balances
       const sellerTokenAccountBalance = await connection.getTokenAccountBalance(sellerTokenAccountPubkey);
-      const buyerTokenAccountBalance = await connection.getTokenAccountBalance(buyerTokenAccount.address);
+      const buyerTokenAccountBalance = await connection.getTokenAccountBalance(buyerTokenAccountPubkey);
 
       console.table([
         {

@@ -58,6 +58,13 @@ const transaction = async () => {
     );
     console.log("Seller token account:", sellerTokenAccount.address.toBase58());
 
+    // Verify seller has enough SOL for account creation
+    const sellerBalance = await connection.getTokenAccountBalance(sellerTokenAccount.address);
+    const minBalanceForAccountCreation = await connection.getMinimumBalanceForRentExemption(165); // Token account size
+    if (sellerBalance < minBalanceForAccountCreation) {
+      throw new Error(`Seller needs at least ${minBalanceForAccountCreation / LAMPORTS_PER_SOL} SOL for account creation`);
+    }
+
     // Create temp token account
     console.log("Creating temp token account...");
     const tempTokenAccountKeypair = new Keypair();
@@ -99,7 +106,6 @@ const transaction = async () => {
       console.log("Transfer successful. Signature:", signature);
 
       // Verify balances
-      const sellerBalance = await connection.getTokenAccountBalance(sellerTokenAccount.address);
       const tempBalance = await connection.getTokenAccountBalance(tempTokenAccount.address);
       
       console.table([{
