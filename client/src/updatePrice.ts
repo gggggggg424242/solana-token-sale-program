@@ -70,7 +70,11 @@ const transaction = async () => {
         createAccountInfo(sellerKeypair.publicKey, true, false),
         createAccountInfo(tokenSaleProgramAccountPubkey, false, true),
       ],
-      data: Buffer.from(Uint8Array.of(instruction, ...new BN(newPerTokenPrice).toArray("le", 8))),
+      data: Buffer.from(Uint8Array.of(
+        instruction,
+        ...new BN(newPerTokenPrice).toArray("le", 8),
+        ...new BN(min_buy).toArray("le", 8)
+      )),
     });
 
     console.log("Sending transaction...");
