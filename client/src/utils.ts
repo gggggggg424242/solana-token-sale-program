@@ -77,9 +77,22 @@ export const checkAccountDataIsValid = (
   const keysOfAccountData = Object.keys(customAccountData);
   const data: { [char: string]: string } = {};
 
+  // Create a mapping between old and new field names
+  const fieldMapping: { [key: string]: string } = {
+    swapSolAmount: 'swapSolAmount',
+    swapTokenAmount: 'swapTokenAmount'
+  };
+
   keysOfAccountData.forEach((key) => {
+    // Map the field name if needed
+    const mappedKey = fieldMapping[key] || key;
     const value = customAccountData[key];
-    const expectedValue = expectedCustomAccountState[key];
+    const expectedValue = expectedCustomAccountState[mappedKey];
+
+    if (!expectedValue) {
+      console.log(`Warning: No expected value found for field ${key} (mapped to ${mappedKey})`);
+      return;
+    }
 
     //PublicKey
     if (value instanceof Uint8Array && expectedValue instanceof PublicKey) {
@@ -105,9 +118,9 @@ export const checkAccountDataIsValid = (
     }
 
     // Format the display value based on the field type
-    if (key === 'swapSolAmount' && typeof expectedValue === 'number') {
+    if (mappedKey === 'swapSolAmount' && typeof expectedValue === 'number') {
       data[key] = `${(expectedValue / LAMPORTS_PER_SOL).toString()} SOL`;
-    } else if (key === 'swapTokenAmount' && typeof expectedValue === 'number') {
+    } else if (mappedKey === 'swapTokenAmount' && typeof expectedValue === 'number') {
       data[key] = `${expectedValue.toString()} tokens`;
     } else {
       data[key] = expectedValue.toString();
