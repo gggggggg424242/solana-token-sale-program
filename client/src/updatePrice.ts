@@ -81,8 +81,8 @@ const transaction = async () => {
     isInitialized: 1,
     sellerPubkey: sellerKeypair.publicKey,
     tempTokenAccountPubkey: tempTokenAccountPubkey,
-    pricePerToken: newPerTokenPrice,
-    min_buy: min_buy,
+    swapSolAmount: newPerTokenPrice,
+    swapTokenAmount: min_buy,
   };
 
   console.log("Current TokenSaleProgramAccountData");

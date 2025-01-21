@@ -12,7 +12,7 @@ const envItems = [
   "TOKEN_PUBKEY",
   "TOKEN_DECIMAL",
   "RPCURL",
-  "API_URL",
+  // "API_URL",
   "TOKEN_SALE_PRICE",
   "TOKEN_MIN_BUY",
   "SELLER_TOKEN_ACCOUNT_PUBKEY",
@@ -45,10 +45,21 @@ export const createAccountInfo = (pubkey: PublicKey, isSigner: boolean, isWritab
 };
 
 export const checkAccountInitialized = async (connection: Connection, customAccountPubkey: PublicKey) => {
+  console.log("Checking account:", customAccountPubkey.toBase58());
+  
   const customAccount = await connection.getAccountInfo(customAccountPubkey);
 
   if (customAccount === null || customAccount.data.length === 0) {
-    console.error("Account of custom program has not been initialized properly");
+    console.error("Account does not exist or has no data");
+    process.exit(1);
+  }
+
+  // Decode and check initialization
+  const decodedData = TokenSaleAccountLayout.decode(customAccount.data) as TokenSaleAccountLayoutInterface;
+  
+  if (decodedData.isInitialized !== 1) {
+    console.error("Account exists but is not initialized properly");
+    console.log("Initialization status:", decodedData.isInitialized);
     process.exit(1);
   }
 

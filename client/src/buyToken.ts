@@ -49,92 +49,121 @@ const transaction = async () => {
   const decodedTokenSaleProgramAccountData = TokenSaleAccountLayout.decode(
     encodedTokenSaleProgramAccountData
   ) as TokenSaleAccountLayoutInterface;
-  const tokenSaleProgramAccountData = {
-    isInitialized: decodedTokenSaleProgramAccountData.isInitialized,
-    sellerPubkey: new PublicKey(decodedTokenSaleProgramAccountData.sellerPubkey),
-    tempTokenAccountPubkey: new PublicKey(decodedTokenSaleProgramAccountData.tempTokenAccountPubkey),
-    swapSolAmount: decodedTokenSaleProgramAccountData.swapSolAmount,
-    swapTokenAmount: decodedTokenSaleProgramAccountData.swapTokenAmount,
+
+  // Add debug logging to see the raw data
+  console.log("Raw decoded data:", {
+    sellerPubkey: decodedTokenSaleProgramAccountData.sellerPubkey,
+    tempTokenAccountPubkey: decodedTokenSaleProgramAccountData.tempTokenAccountPubkey,
+  });
+
+  // Helper function to safely convert Uint8Array to PublicKey
+  const toPublicKey = (data: Uint8Array): PublicKey => {
+    // Ensure the data is exactly 32 bytes
+    if (data.length !== 32) {
+      throw new Error(`Invalid public key data length: ${data.length}`);
+    }
+    return new PublicKey(Array.from(data));
   };
 
-  console.log("getOrCreateAssociatedTokenAccount");
-  let buyerTokenAccount = await getOrCreateAssociatedTokenAccount(connection, buyerKeypair, tokenPubkey, buyerKeypair.publicKey, undefined, undefined, undefined, TOKEN_PROGRAM_ID)
-    .catch(e => console.log("error: "+e));
-  const PDA = await PublicKey.findProgramAddressSync([Buffer.from("token_sale")], tokenSaleProgramId);
+  try {
+    const tokenSaleProgramAccountData = {
+      isInitialized: decodedTokenSaleProgramAccountData.isInitialized,
+      sellerPubkey: toPublicKey(decodedTokenSaleProgramAccountData.sellerPubkey),
+      tempTokenAccountPubkey: toPublicKey(decodedTokenSaleProgramAccountData.tempTokenAccountPubkey),
+      swapSolAmount: decodedTokenSaleProgramAccountData.swapSolAmount,
+      swapTokenAmount: decodedTokenSaleProgramAccountData.swapTokenAmount,
+    };
 
-  buyerTokenAccount = buyerTokenAccount as Account
-
-  console.log("Send to buyer: "+ buyerTokenAccount.address)
-  console.log("Token Pubkey: "+ tokenPubkey)
-
-  console.log({
-    tokenSaleProgramId: tokenSaleProgramId,
-      tokenSaleProgramAccountPubkey: tokenSaleProgramAccountPubkey,
-      buyerPubKey: buyerKeypair.publicKey,
-      sellerKeypair: tokenSaleProgramAccountData.sellerPubkey,
-      tempTokenAccountPubkey: tokenSaleProgramAccountData.tempTokenAccountPubkey,
-      programId: SystemProgram.programId,
-      toTokenAccount: buyerTokenAccount.address,
-      TOKEN_PROGRAM_ID: TOKEN_PROGRAM_ID,
-      tokenPubKey: tokenPubkey,
-      PDA: PDA[0],
+    console.log("Converted account data:", {
+      isInitialized: tokenSaleProgramAccountData.isInitialized,
+      sellerPubkey: tokenSaleProgramAccountData.sellerPubkey.toBase58(),
+      tempTokenAccountPubkey: tokenSaleProgramAccountData.tempTokenAccountPubkey.toBase58(),
+      swapSolAmount: tokenSaleProgramAccountData.swapSolAmount,
+      swapTokenAmount: tokenSaleProgramAccountData.swapTokenAmount,
     });
-  const buyTokenIx = new TransactionInstruction({
-    programId: tokenSaleProgramId,
-    keys: [
-      createAccountInfo(buyerKeypair.publicKey, true, true),
-      createAccountInfo(tokenSaleProgramAccountData.sellerPubkey, false, true),
-      createAccountInfo(tokenSaleProgramAccountData.tempTokenAccountPubkey, false, true),
-      createAccountInfo(tokenSaleProgramAccountPubkey, false, false),
-      createAccountInfo(SystemProgram.programId, false, false),
-      createAccountInfo(new PublicKey(buyerTokenAccount.address), false, true),
-      createAccountInfo(TOKEN_PROGRAM_ID, false, false),
-      createAccountInfo(tokenPubkey, false, false),
-      createAccountInfo(PDA[0], false, false),
-    ],
-    data: Buffer.from(Uint8Array.of(instruction, ...new BN(number_of_tokens).toArray("le",8))),
-  });
 
-  console.log(Uint8Array.of(instruction, ...new BN(number_of_tokens).toArray("le",8)));
+    console.log("getOrCreateAssociatedTokenAccount");
+    let buyerTokenAccount = await getOrCreateAssociatedTokenAccount(connection, buyerKeypair, tokenPubkey, buyerKeypair.publicKey, undefined, undefined, undefined, TOKEN_PROGRAM_ID)
+      .catch(e => console.log("error: "+e));
+    const PDA = await PublicKey.findProgramAddressSync([Buffer.from("token_sale")], tokenSaleProgramId);
 
-  const tx = new Transaction().add(buyTokenIx);
+    buyerTokenAccount = buyerTokenAccount as Account
 
-  console.log("sendAndConfirmTransaction");
-  console.log("");
-  await sendAndConfirmTransaction(connection, tx, [buyerKeypair], {
-    skipPreflight: false,
-    preflightCommitment: "confirmed",
-  });
-  //phase1 end
+    console.log("Send to buyer: "+ buyerTokenAccount.address)
+    console.log("Token Pubkey: "+ tokenPubkey)
 
-  //wait block update
-  await new Promise((resolve) => setTimeout(resolve, 1000));
+    console.log({
+      tokenSaleProgramId: tokenSaleProgramId,
+        tokenSaleProgramAccountPubkey: tokenSaleProgramAccountPubkey,
+        buyerPubKey: buyerKeypair.publicKey,
+        sellerKeypair: tokenSaleProgramAccountData.sellerPubkey,
+        tempTokenAccountPubkey: tokenSaleProgramAccountData.tempTokenAccountPubkey,
+        programId: SystemProgram.programId,
+        toTokenAccount: buyerTokenAccount.address,
+        TOKEN_PROGRAM_ID: TOKEN_PROGRAM_ID,
+        tokenPubKey: tokenPubkey,
+        PDA: PDA[0],
+      });
+    const buyTokenIx = new TransactionInstruction({
+      programId: tokenSaleProgramId,
+      keys: [
+        createAccountInfo(buyerKeypair.publicKey, true, true),
+        createAccountInfo(tokenSaleProgramAccountData.sellerPubkey, false, true),
+        createAccountInfo(tokenSaleProgramAccountData.tempTokenAccountPubkey, false, true),
+        createAccountInfo(tokenSaleProgramAccountPubkey, false, false),
+        createAccountInfo(SystemProgram.programId, false, false),
+        createAccountInfo(new PublicKey(buyerTokenAccount.address), false, true),
+        createAccountInfo(TOKEN_PROGRAM_ID, false, false),
+        createAccountInfo(tokenPubkey, false, false),
+        createAccountInfo(PDA[0], false, false),
+      ],
+      data: Buffer.from(Uint8Array.of(instruction, ...new BN(number_of_tokens).toArray("le",8))),
+    });
 
-  //phase2 (check token sale)
-  const sellerTokenAccountBalance = await connection.getTokenAccountBalance(sellerTokenAccountPubkey);
-  const tempTokenAccountBalance = await connection.getTokenAccountBalance(tempTokenAccountPubkey);
-  const buyerTokenAccountBalance = await connection.getTokenAccountBalance(buyerTokenAccount!.address);
+    console.log(Uint8Array.of(instruction, ...new BN(number_of_tokens).toArray("le",8)));
 
-  console.table([
-    {
-      sellerTokenAccountBalance: sellerTokenAccountBalance.value.uiAmountString,
-      tempTokenAccountBalance: tempTokenAccountBalance.value.uiAmountString,
-      buyerTokenAccountBalance: buyerTokenAccountBalance.value.uiAmountString,
-    },
-  ]);
+    const tx = new Transaction().add(buyTokenIx);
 
-  const sellerSOLBalance = await connection.getBalance(sellerPubkey, "confirmed");
-  const buyerSOLBalance = await connection.getBalance(buyerKeypair.publicKey, "confirmed");
+    console.log("sendAndConfirmTransaction");
+    console.log("");
+    await sendAndConfirmTransaction(connection, tx, [buyerKeypair], {
+      skipPreflight: false,
+      preflightCommitment: "confirmed",
+    });
+    //phase1 end
 
-  console.table([
-    {
-      sellerSOLBalance: sellerSOLBalance / LAMPORTS_PER_SOL,
-      buyerSOLBalance: buyerSOLBalance / LAMPORTS_PER_SOL,
-    },
-  ]);
+    //wait block update
+    await new Promise((resolve) => setTimeout(resolve, 1000));
 
-  console.log(`✨TX successfully finished✨\n`);
-  //#phase2 end
+    //phase2 (check token sale)
+    const sellerTokenAccountBalance = await connection.getTokenAccountBalance(sellerTokenAccountPubkey);
+    const tempTokenAccountBalance = await connection.getTokenAccountBalance(tempTokenAccountPubkey);
+    const buyerTokenAccountBalance = await connection.getTokenAccountBalance(buyerTokenAccount!.address);
+
+    console.table([
+      {
+        sellerTokenAccountBalance: sellerTokenAccountBalance.value.uiAmountString,
+        tempTokenAccountBalance: tempTokenAccountBalance.value.uiAmountString,
+        buyerTokenAccountBalance: buyerTokenAccountBalance.value.uiAmountString,
+      },
+    ]);
+
+    const sellerSOLBalance = await connection.getBalance(sellerPubkey, "confirmed");
+    const buyerSOLBalance = await connection.getBalance(buyerKeypair.publicKey, "confirmed");
+
+    console.table([
+      {
+        sellerSOLBalance: sellerSOLBalance / LAMPORTS_PER_SOL,
+        buyerSOLBalance: buyerSOLBalance / LAMPORTS_PER_SOL,
+      },
+    ]);
+
+    console.log(`✨TX successfully finished✨\n`);
+    //#phase2 end
+  } catch (error) {
+    console.error("Error processing account data:", error);
+    throw error;
+  }
 };
 
 transaction();
