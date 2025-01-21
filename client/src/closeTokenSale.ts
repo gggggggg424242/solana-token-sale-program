@@ -27,6 +27,10 @@ const transaction = async () => {
     const connection = new Connection(process.env.RPCURL!, "confirmed");
     const tokenSaleProgramId = new PublicKey(process.env.CUSTOM_PROGRAM_ID!);
 
+    // Get buyer info
+    const buyerPubkey = new PublicKey(process.env.BUYER_PUBLIC_KEY!);
+    const tokenPubkey = new PublicKey(process.env.TOKEN_PUBKEY!);
+
     // Verify program account exists before proceeding
     const tokenSaleProgramAccountPubkey = new PublicKey(process.env.TOKEN_SALE_PROGRAM_ACCOUNT_PUBKEY!);
     console.log("Checking program account:", tokenSaleProgramAccountPubkey.toBase58());
@@ -37,6 +41,7 @@ const transaction = async () => {
     }
     console.log("Program account exists with data size:", programAccount.data.length);
 
+    // Setup seller
     const sellerPubkey = new PublicKey(process.env.SELLER_PUBLIC_KEY!);
     const secretKey = bs58.decode(process.env.SELLER_PRIVATE_KEY!);
     const sellerPrivateKey = Uint8Array.from(Buffer.from(secretKey));
@@ -62,6 +67,19 @@ const transaction = async () => {
     const sellerTokenAccountPubkey = new PublicKey(process.env.SELLER_TOKEN_ACCOUNT_PUBKEY!);
     const tempTokenAccountPubkey = new PublicKey(process.env.TEMP_TOKEN_ACCOUNT_PUBKEY!);
     const instruction: InstructionNumber = 2;
+
+    // Get buyer token account
+    console.log("Getting buyer token account...");
+    const buyerTokenAccount = await getOrCreateAssociatedTokenAccount(
+      connection,
+      sellerKeypair, // we can use seller as payer since we're just getting the account
+      tokenPubkey,
+      buyerPubkey,
+      undefined,
+      undefined,
+      undefined,
+      TOKEN_PROGRAM_ID
+    );
 
     const PDA = await PublicKey.findProgramAddressSync([Buffer.from("token_sale")], tokenSaleProgramId);
 
