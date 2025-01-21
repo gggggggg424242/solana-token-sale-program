@@ -50,11 +50,7 @@ const transaction = async () => {
       connection,
       sellerKeypair,
       tokenMintPubkey,
-      sellerKeypair.publicKey,
-      undefined,
-      undefined,
-      undefined,
-      TOKEN_PROGRAM_ID
+      sellerKeypair.publicKey
     );
     console.log("Seller token account:", sellerTokenAccount.address.toBase58());
 
@@ -72,11 +68,7 @@ const transaction = async () => {
       connection,
       sellerKeypair,
       tokenMintPubkey,
-      tempTokenAccountKeypair.publicKey,
-      undefined,
-      undefined,
-      undefined,
-      TOKEN_PROGRAM_ID
+      tempTokenAccountKeypair.publicKey
     );
     console.log("Temp token account:", tempTokenAccount.address.toBase58());
 
