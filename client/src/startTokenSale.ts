@@ -113,26 +113,88 @@ const transaction = async () => {
     ),
   });
 
-  //make transaction with several instructions(ix)
- console.log("Send transaction 1...\n");
-  let tx = new Transaction().add(
-    createTempTokenAccountIx,
-    initTempTokenAccountIx,
-    transferTokenToTempTokenAccountIx,
-    createTokenSaleProgramAccountIx,
-    initTokenSaleProgramIx
-  );
+//make transaction with several instructions(ix)
+console.log("Send transaction 1...\n");
+// First create and initialize program account
+let tx1 = new Transaction().add(
+createTokenSaleProgramAccountIx,
+initTokenSaleProgramIx
+);
 
-  await sendAndConfirmTransaction(connection, tx, [sellerKeypair, tempTokenAccountKeypair, tokenSaleProgramAccountKeypair], {
+try {
+await sendAndConfirmTransaction(
+    connection, 
+    tx1, 
+    [sellerKeypair, tokenSaleProgramAccountKeypair],
+    {
     skipPreflight: false,
     preflightCommitment: "confirmed",
-  }).catch(err => console.log(err));
+    }
+);
+} catch (err) {
+if (err instanceof SendTransactionError) {
+    console.error("Failed to initialize program account. Transaction error:");
+    console.error("Message:", err.message);
+    console.error("Transaction logs:");
+    err.logs?.forEach(log => console.error(" >", log));
+} else {
+    console.error("Failed to initialize program account:", err);
+}
+throw err;
+}
+
+// Verify program account initialization
+const programAccount = await checkAccountInitialized(
+connection,
+tokenSaleProgramAccountKeypair.publicKey
+);
+
+if (!programAccount) {
+throw new Error("Program account not initialized properly");
+}
+
+// Now handle token account setup and transfer
+let tx2 = new Transaction().add(
+createTempTokenAccountIx,
+initTempTokenAccountIx,
+transferTokenToTempTokenAccountIx
+);
+
+try {
+await sendAndConfirmTransaction(
+    connection,
+    tx2,
+    [sellerKeypair, tempTokenAccountKeypair],
+    {
+    skipPreflight: false,
+    preflightCommitment: "confirmed",
+    }
+);
+} catch (err) {
+if (err instanceof SendTransactionError) {
+    console.error("Failed to setup token accounts. Transaction error:");
+    console.error("Message:", err.message);
+    console.error("Transaction logs:");
+    err.logs?.forEach(log => console.error(" >", log));
+} else {
+    console.error("Failed to setup token accounts:", err);
+}
+throw err;
+}
 
   //wait block update
   await new Promise((resolve) => setTimeout(resolve, 4000));
 
-  //phase2 (check Transaction result is valid)
-  const tokenSaleProgramAccount = await checkAccountInitialized(connection, tokenSaleProgramAccountKeypair.publicKey);
+//phase2 (check Transaction result is valid)
+console.log("Verifying account state...");
+const tokenSaleProgramAccount = await checkAccountInitialized(
+connection,
+tokenSaleProgramAccountKeypair.publicKey
+);
+
+if (!tokenSaleProgramAccount) {
+throw new Error("Failed to verify program account state");
+}
 
   const encodedTokenSaleProgramAccountData = tokenSaleProgramAccount.data;
   const decodedTokenSaleProgramAccountData = TokenSaleAccountLayout.decode(

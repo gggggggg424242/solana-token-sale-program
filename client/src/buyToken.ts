@@ -31,10 +31,7 @@ const transaction = async () => {
   const buyerPubkey = new PublicKey(process.env.BUYER_PUBLIC_KEY!);
   const secretKey = bs58.decode(process.env.BUYER_PRIVATE_KEY!);
   const buyerPrivateKey = Uint8Array.from(Buffer.from(secretKey));
-  const buyerKeypair = new Keypair({
-    publicKey: buyerPubkey.toBytes(),
-    secretKey: buyerPrivateKey,
-  });
+  const buyerKeypair = Keypair.fromSecretKey(buyerPrivateKey);
 
   const number_of_tokens = 10;
 

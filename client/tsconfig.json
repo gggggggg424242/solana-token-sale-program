@@ -1,11 +1,12 @@
 
 {
-  "compilerOptions": {
-      "rootDir": "./src",
-      "outDir": "./build",
-      "lib": ["ESNext"],
-      "strict": true,
-      "skipLibCheck": true,
-      "sourceMap": true
-  }
+"compilerOptions": {
+    "rootDir": "./src",
+    "outDir": "./build",
+    "lib": ["ESNext"],
+    "strict": true,
+    "skipLibCheck": true,
+    "sourceMap": true,
+    "esModuleInterop": true
+}
 }
