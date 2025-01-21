@@ -1,4 +1,4 @@
-import { Connection, Keypair, PublicKey } from "@solana/web3.js";
+import { Connection, Keypair, PublicKey, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { 
   TokenSaleAccountLayout,
   TokenSaleAccountLayoutInterface, 
@@ -85,6 +85,8 @@ export const checkAccountDataIsValid = (
     if (value instanceof Uint8Array && expectedValue instanceof PublicKey) {
       if (!new PublicKey(value).equals(expectedValue)) {
         console.log(`${key} is not matched expected one`);
+        console.log(`Expected: ${expectedValue.toBase58()}`);
+        console.log(`Got: ${new PublicKey(value).toBase58()}`);
         process.exit(1);
       }
     } else if (value instanceof Uint8Array && typeof expectedValue === "number") {
@@ -95,15 +97,23 @@ export const checkAccountDataIsValid = (
       }
 
       //value is not matched expected one.
-      const isBufferSame = Buffer.compare(value, Buffer.from(new BN(expectedValue).toArray("le", value.length)));
-
-      if (isBufferSame !== 0) {
-        console.log(`[${key}] : expected value is ${expectedValue}, but current value is ${value}`);
+      const currentValue = new BN(value, 'le').toNumber();
+      if (currentValue !== expectedValue) {
+        console.log(`[${key}] : expected value is ${expectedValue}, but current value is ${currentValue}`);
         process.exit(1);
       }
     }
 
-    data[key] = expectedValue.toString();
+    // Format the display value based on the field type
+    if (key === 'swapSolAmount' && typeof expectedValue === 'number') {
+      data[key] = `${(expectedValue / LAMPORTS_PER_SOL).toString()} SOL`;
+    } else if (key === 'swapTokenAmount' && typeof expectedValue === 'number') {
+      data[key] = `${expectedValue.toString()} tokens`;
+    } else {
+      data[key] = expectedValue.toString();
+    }
   });
+  
+  console.log("Account data validation:");
   console.table([data]);
 };

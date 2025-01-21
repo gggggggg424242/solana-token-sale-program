@@ -4,11 +4,11 @@ import { PublicKey } from "@solana/web3.js";
 import * as BufferLayout from "buffer-layout";
 
 export const TokenSaleAccountLayout = BufferLayout.struct([
-  BufferLayout.u8("isInitialized"), //1byte
-  BufferLayout.blob(32, "sellerPubkey"), //pubkey(32byte)
-  BufferLayout.blob(32, "tempTokenAccountPubkey"), //pubkey(32byte)
-  BufferLayout.blob(8, "swapSolAmount"), //8byte
-  BufferLayout.blob(8, "swapTokenAmount"), //8byte
+  BufferLayout.u8("isInitialized"),           // 1 byte - Account initialization status
+  BufferLayout.blob(32, "sellerPubkey"),      // 32 bytes - Seller's public key
+  BufferLayout.blob(32, "tempTokenAccountPubkey"), // 32 bytes - Temporary token account public key
+  BufferLayout.blob(8, "swapSolAmount"),      // 8 bytes - Price per token in lamports
+  BufferLayout.blob(8, "swapTokenAmount"),    // 8 bytes - Minimum purchase amount in tokens
 ]);
 
 export interface TokenSaleAccountLayoutInterface {

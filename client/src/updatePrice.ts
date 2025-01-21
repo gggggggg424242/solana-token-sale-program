@@ -117,7 +117,8 @@ const transaction = async () => {
 
     console.table([
       {
-        pricePerToken: newPerTokenPrice / LAMPORTS_PER_SOL + " SOL",
+        swapSolAmount: newPerTokenPrice / LAMPORTS_PER_SOL + " SOL",
+        swapTokenAmount: min_buy + " tokens"
       },
     ]);
     console.log(`✨TX successfully finished✨\n`);
