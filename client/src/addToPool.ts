@@ -39,7 +39,10 @@ const transaction = async () => {
     // Get token mint
     const tokenMintPubkey = new PublicKey(process.env.TOKEN_PUBKEY!);
     const tokenDecimal = parseInt(process.env.TOKEN_DECIMAL!);
-    const amountOfTokenForSale = 100 * Math.pow(10, tokenDecimal);
+    const tokenAmountToAdd = parseInt(process.env.TOKEN_AMOUNT!) || 100; // Default to 100 if not specified
+    const amountOfTokenForSale = tokenAmountToAdd * Math.pow(10, tokenDecimal);
+    
+    console.log(`Adding ${tokenAmountToAdd} tokens (${amountOfTokenForSale} base units) to pool...`);
 
     // Get or create seller token account
     console.log("Getting seller token account...");

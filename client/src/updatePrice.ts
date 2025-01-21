@@ -67,7 +67,7 @@ const transaction = async () => {
     const updateTokenPriceIx = new TransactionInstruction({
       programId: tokenSaleProgramId,
       keys: [
-        createAccountInfo(sellerKeypair.publicKey, true, true),
+        createAccountInfo(sellerKeypair.publicKey, true, false),
         createAccountInfo(tokenSaleProgramAccountPubkey, false, true),
       ],
       data: Buffer.from(Uint8Array.of(instruction, ...new BN(newPerTokenPrice).toArray("le", 8))),
