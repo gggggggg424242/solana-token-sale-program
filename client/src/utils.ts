@@ -1,5 +1,9 @@
 import { Connection, Keypair, PublicKey } from "@solana/web3.js";
-import { TokenSaleAccountLayoutInterface, ExpectedTokenSaleAccountLayoutInterface } from "./account";
+import { 
+  TokenSaleAccountLayout,
+  TokenSaleAccountLayoutInterface, 
+  ExpectedTokenSaleAccountLayoutInterface 
+} from "./account";
 import BN = require("bn.js");
 import fs = require("fs");
 

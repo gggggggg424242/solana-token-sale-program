@@ -23,9 +23,25 @@ type InstructionNumber = 0 | 1 | 2 | 3;
 
 const transaction = async () => {
   console.log("3. Buy Tokens");
-  //phase1 (setup Transaction & send Transaction)
   console.log("Setup Buy Transaction");
-  const connection = new Connection(clusterApiUrl("devnet"), "confirmed");
+
+  // Verify environment variables
+  const tokenSaleProgramAccountPubkeyStr = process.env.TOKEN_SALE_PROGRAM_ACCOUNT_PUBKEY;
+  if (!tokenSaleProgramAccountPubkeyStr) {
+    throw new Error("TOKEN_SALE_PROGRAM_ACCOUNT_PUBKEY not found in .env");
+  }
+  console.log("Using program account:", tokenSaleProgramAccountPubkeyStr);
+
+  const connection = new Connection(process.env.RPCURL!, "confirmed");
+  const tokenSaleProgramAccountPubkey = new PublicKey(tokenSaleProgramAccountPubkeyStr);
+  
+  // Verify account exists before proceeding
+  const accountInfo = await connection.getAccountInfo(tokenSaleProgramAccountPubkey);
+  if (!accountInfo) {
+    throw new Error(`Account ${tokenSaleProgramAccountPubkeyStr} not found on chain`);
+  }
+  console.log("Account exists with data size:", accountInfo.data.length);
+
   const tokenSaleProgramId = new PublicKey(process.env.CUSTOM_PROGRAM_ID!);
   const sellerPubkey = new PublicKey(process.env.SELLER_PUBLIC_KEY!);
   const buyerPubkey = new PublicKey(process.env.BUYER_PUBLIC_KEY!);
@@ -39,7 +55,6 @@ const transaction = async () => {
   const number_of_tokens = 10;
 
   const tokenPubkey = new PublicKey(process.env.TOKEN_PUBKEY!);
-  const tokenSaleProgramAccountPubkey = new PublicKey(process.env.TOKEN_SALE_PROGRAM_ACCOUNT_PUBKEY!);
   const sellerTokenAccountPubkey = new PublicKey(process.env.SELLER_TOKEN_ACCOUNT_PUBKEY!);
   const tempTokenAccountPubkey = new PublicKey(process.env.TEMP_TOKEN_ACCOUNT_PUBKEY!);
   const instruction: InstructionNumber = 1;

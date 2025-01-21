@@ -193,10 +193,30 @@ const transaction = async () => {
     });
 
     // Update environment variables
-    process.env.TOKEN_SALE_PROGRAM_ACCOUNT_PUBKEY = tokenSaleProgramAccountKeypair.publicKey.toString();
-    process.env.TEMP_TOKEN_ACCOUNT_PUBKEY = tempTokenAccountKeypair.publicKey.toString();
+    const programAccountPubkey = tokenSaleProgramAccountKeypair.publicKey.toString();
+    const tempAccountPubkey = tempTokenAccountKeypair.publicKey.toString();
+    
+    console.log("Saving account addresses to .env:");
+    console.log("Program Account:", programAccountPubkey);
+    console.log("Temp Account:", tempAccountPubkey);
+    
+    process.env.TOKEN_SALE_PROGRAM_ACCOUNT_PUBKEY = programAccountPubkey;
+    process.env.TEMP_TOKEN_ACCOUNT_PUBKEY = tempAccountPubkey;
+    
     updateEnv();
 
+    // Verify the environment variables were updated
+    console.log("\nVerifying .env updates:");
+    console.log("TOKEN_SALE_PROGRAM_ACCOUNT_PUBKEY:", process.env.TOKEN_SALE_PROGRAM_ACCOUNT_PUBKEY);
+    console.log("TEMP_TOKEN_ACCOUNT_PUBKEY:", process.env.TEMP_TOKEN_ACCOUNT_PUBKEY);
+
+    // Verify the account is still accessible
+    const finalCheck = await connection.getAccountInfo(tokenSaleProgramAccountKeypair.publicKey);
+    if (!finalCheck) {
+      throw new Error("Program account not found after initialization");
+    }
+    
+    console.log("\nFinal account data size:", finalCheck.data.length);
     console.log("Token sale initialized successfully");
 
   } catch (error) {
