@@ -6,13 +6,13 @@
   "scripts": {
     "compile": "tsc -p ./tsconfig.json",
     "setup-validator": "solana-test-validator -r --bpf-program 79qNzt6mJ9iifKBB4WK5MaCJDJwnU6DWCvX7E8ScD6M9",
-    "setup": "npm run compile && node build/setup.js",
-    "fund": "npm run compile && node build/addToPool.js",
-    "start": "npm run compile && node build/setup.js && node build/startTokenSale.js",
+    "setup": "npm run compile && node --trace-deprecation build/setup.js",
+    "fund": "npm run compile && node --trace-deprecation  build/addToPool.js",
+    "start": "npm run compile && node --trace-deprecation build/setup.js && node build/startTokenSale.js",
     "buy": "npm run compile && node --trace-deprecation build/buyToken.js",
-    "update": "npm run compile && node build/updatePrice.js",
-    "close": "npm run compile && node build/closeTokenSale.js",
-    "all": "npm run compile && node build/setup.js && node build/startTokenSale.js && node build/buyToken.js && node build/updatePrice.js && node build/buyToken.js && node build/closeTokenSale.js"
+    "update": "npm run compile && node --trace-deprecation build/updatePrice.js",
+    "close": "npm run compile && node --trace-deprecation build/closeTokenSale.js",
+    "all": "npm run compile && node --trace-deprecation build/setup.js && node build/startTokenSale.js && node build/buyToken.js && node build/updatePrice.js && node build/buyToken.js && node build/closeTokenSale.js"
   },
   "author": "",
   "devDependencies": {
