@@ -29,4 +29,8 @@
     "buffer-layout": "^1.2.2",
     "dotenv": "^16.4.5"
   }
+  ,
+"overrides": {
+"whatwg-url": "^14.1.0"
+}
 }
